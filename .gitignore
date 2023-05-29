@@ -1,0 +1,23 @@
+node_modules
+
+.vscode
+.idea
+.vercel
+
+# Supabase
+**/supabase/.branches
+**/supabase/.temp
+
+# excempt the apps/www .env
+!apps/www/.env
+.env
+.env.test
+.env.local
+.env.production
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
