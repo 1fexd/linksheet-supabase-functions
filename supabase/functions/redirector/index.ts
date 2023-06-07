@@ -1,5 +1,5 @@
-import {serve} from "https://deno.land/std@0.168.0/http/server.ts"
-import {createClient} from "https://esm.sh/@supabase/supabase-js@2"
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
 const defaultHeaders = (url) => {
     return {
@@ -22,13 +22,13 @@ const maxTries = 5;
 
 const returnResolvedUrl = (resolvedUrl) => {
     return new Response(
-        JSON.stringify({"resolvedUrl": resolvedUrl}),
-        {headers: {"Content-Type": "application/json"}},
+        JSON.stringify({ "resolvedUrl": resolvedUrl }),
+        { headers: { "Content-Type": "application/json" } },
     );
 }
 
 serve(async (req) => {
-    const {url} = await req.json()
+    const { url } = await req.json()
 
     const supabaseClient = createClient(
         Deno.env.get("SUPABASE_URL") ?? "",
@@ -64,15 +64,15 @@ serve(async (req) => {
     }
 
     if (counter === maxTries) {
-        return new Response(JSON.stringify({"error": "Max retries exceeded"}), {
+        return new Response(JSON.stringify({ "error": "Max retries exceeded" }), {
             status: 400,
-            headers: {"Content-Type": "application/json"}
-        })
+            headers: { "Content-Type": "application/json" }
+        });
     }
 
-    console.log(`Found ${resolvedUrl} for ${url}`)
+    console.log(`Found ${resolvedUrl} for ${url}`);
     if (new URL(resolvedUrl).hostname !== new URL(url).hostname) {
-        await supabaseClient.from("resolved_urls").insert({resolved_url: resolvedUrl, short_url: url});
+        await supabaseClient.from("resolved_urls").insert({ resolved_url: resolvedUrl, short_url: url });
     }
 
     return returnResolvedUrl(resolvedUrl);
