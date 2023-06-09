@@ -1,0 +1,15 @@
+{
+  "imports": {
+    "@supabase/postgrest-js": "https://esm.sh/v125/*@supabase/postgrest-js@1.7.0",
+    "@supabase/supabase-js": "https://esm.sh/v125/*@supabase/supabase-js@2.24.0"
+  },
+  "scopes": {
+    "https://esm.sh/v125/": {
+      "@supabase/functions-js": "https://esm.sh/v125/@supabase/functions-js@2.1.1",
+      "@supabase/gotrue-js": "https://esm.sh/v125/@supabase/gotrue-js@2.29.0",
+      "@supabase/realtime-js": "https://esm.sh/v125/@supabase/realtime-js@2.7.2",
+      "@supabase/storage-js": "https://esm.sh/v125/@supabase/storage-js@2.5.1",
+      "cross-fetch": "https://esm.sh/v125/cross-fetch@3.1.6"
+    }
+  }
+}

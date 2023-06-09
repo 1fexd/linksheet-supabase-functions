@@ -1,60 +1,46 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
+import { createCache, createHeaders, createResponse, ResolveInput, TableSchema } from "../_shared/common.ts";
 
-const defaultHeaders = (url) => {
-    return {
-        "Host": new URL(url).host,
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; rv:110.0) Gecko/20100101 Firefox/110.0",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-        "Accept-Language": "en-US,en;q=0.5",
-        "Accept-Encoding": "gzip, deflate, br",
-        "Connection": "keep-alive",
-        "Upgrade-Insecure-Requests": "1",
-        "Sec-Fetch-Dest": "document",
-        "Sec-Fetch-Mode": "navigate",
-        "Sec-Fetch-Site": "none",
-        "Sec-Fetch-User": "?1",
-        "Pragma": "no-cache",
-        "Cache-Control": "no-cache"
-    }
-};
+
 const maxTries = 5;
 
-const returnResolvedUrl = (resolvedUrl) => {
-    return new Response(
-        JSON.stringify({ "resolvedUrl": resolvedUrl }),
-        { headers: { "Content-Type": "application/json" } },
-    );
-}
+const wasRedirected = (status: number) => status >= 300 || status <= 399;
+const responseField = "resolvedUrl";
 
 serve(async (req) => {
-    const { url } = await req.json()
+    const { url } = await req.json() as ResolveInput;
 
-    const supabaseClient = createClient(
-        Deno.env.get("SUPABASE_URL") ?? "",
-        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+    const cache = createCache<TableSchema["resolved_urls"]>("resolved_urls",
+        "resolved_url", "short_url",
+        responseField
     );
 
-    const cachedResolvedUrl = await supabaseClient.from("resolved_urls").select("resolved_url").eq("short_url", url);
-    if (cachedResolvedUrl.data.length > 0) {
+    const cached = await cache.tryFindCached(url);
+    if (cached !== null) {
         console.log(`Returning cached url for ${url}`)
-        return returnResolvedUrl(cachedResolvedUrl.data[0]["resolved_url"]);
+        return cached;
     }
 
     console.log(`Looking up ${url}`)
-    let resolvedUrl: string = url;
+
+    const urlObj = new URL(url);
+    let resolvedUrl = urlObj;
     let lastStatus = -1;
 
     let counter = 0;
-    while (counter === 0 || (lastStatus >= 300 || lastStatus <= 399)) {
-        const resp = await fetch(resolvedUrl, {
+    while (counter === 0 || !wasRedirected(lastStatus)) {
+        console.log(resolvedUrl.toString());
+        const resp = await fetch(resolvedUrl.toString(), {
             method: "HEAD",
             redirect: "manual",
-            headers: lastStatus >= 400 && lastStatus <= 499 ? defaultHeaders(resolvedUrl) : {}
+            headers: lastStatus >= 400 && lastStatus <= 499 ? createHeaders(resolvedUrl) : {}
         });
 
-        if (resp.status >= 300 && resp.status <= 399) {
-            resolvedUrl = resp.headers.get("Location")
+        if (wasRedirected(resp.status)) {
+            const location = resp.headers.get("Location");
+            if (location !== null) {
+                resolvedUrl = new URL(location);
+            }
         }
 
         lastStatus = resp.status;
@@ -71,9 +57,9 @@ serve(async (req) => {
     }
 
     console.log(`Found ${resolvedUrl} for ${url}`);
-    if (new URL(resolvedUrl).hostname !== new URL(url).hostname) {
-        await supabaseClient.from("resolved_urls").insert({ resolved_url: resolvedUrl, short_url: url });
+    if (urlObj.host !== resolvedUrl.host) {
+        await cache.tryCache(urlObj.toString(), resolvedUrl.toString());
     }
 
-    return returnResolvedUrl(resolvedUrl);
+    return createResponse(responseField, resolvedUrl.toString());
 });
