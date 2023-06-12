@@ -1,3 +1,3 @@
-#!/usr/bin/env bash
+#!/bin/bash
 supabase start
 supabase functions serve
