@@ -21,10 +21,14 @@ export const createHeaders = (url: URL) => {
     }
 };
 
-export const createResponse = (fieldName: string, url: string) => new Response(
-    JSON.stringify({ [fieldName]: url }),
-    { headers: { "Content-Type": "application/json" } },
-);
+// @ts-ignore Any is fine
+export const createResponse = (fieldName: string, url: string, payload: { [key: string]: string | Record<string, string> } = {}) => {
+    payload[fieldName] = url;
+    return new Response(
+        JSON.stringify(payload),
+        { headers: { "Content-Type": "application/json" } },
+    );
+}
 
 export type ResolveInput = {
     url: string,
@@ -35,10 +39,13 @@ export type TableSchema = PublicSchema["Tables"]
 
 export class DatabaseCache<Relation extends GenericTable | GenericView> {
     private readonly queryBuilder: PostgrestQueryBuilder<PublicSchema, Relation>;
+    // @ts-ignore This is fine typescript fuck you
     private readonly resolvedUrlColumn: keyof Relation["Row"];
+    // @ts-ignore This is fine typescript fuck you
     private readonly inputUrlColumn: keyof Relation["Row"];
     private readonly responseField: string;
 
+    // @ts-ignore This is fine typescript fuck you
     constructor(queryBuilder: PostgrestQueryBuilder<PublicSchema, Relation>, resolvedUrlColumn: keyof Relation["Row"], inputUrlColumn: keyof Relation["Row"], responseField: string) {
         this.queryBuilder = queryBuilder;
         this.resolvedUrlColumn = resolvedUrlColumn;
@@ -46,7 +53,12 @@ export class DatabaseCache<Relation extends GenericTable | GenericView> {
         this.responseField = responseField;
     }
 
-    async tryFindCached(url: string) {
+    async tryFindCachedWithResponse(url: string) {
+        const cached = await this.tryFindCached(url);
+        return cached !== null ? createResponse(this.responseField, cached) : null;
+    }
+
+    async tryFindCached(url: string): Promise<string | null> {
         const {
             data,
             error
@@ -55,7 +67,7 @@ export class DatabaseCache<Relation extends GenericTable | GenericView> {
         // @ts-ignore This is fine typescript wth .-.
         if (data?.length > 0 && error === null) {
             // @ts-ignore Using resolvedColumn as index is fine since we select it above
-            return createResponse(this.responseField, data[0][this.resolvedUrlColumn]);
+            return data[0][this.resolvedUrlColumn];
         }
 
         return null;
@@ -70,12 +82,12 @@ export class DatabaseCache<Relation extends GenericTable | GenericView> {
     }
 }
 
+// @ts-ignore This is fine typescript fuck you
 export function createCache<Relation extends GenericTable | GenericView>(table: string, resolvedUrlColumn: keyof Relation["Row"], inputUrlColumn: keyof Relation["Row"], responseField: string) {
     const client = createClient<Database>(
         Deno.env.get("SUPABASE_URL") ?? "",
         Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
-
 
     return new DatabaseCache<Relation>(client.from(table), resolvedUrlColumn, inputUrlColumn, responseField);
 }
